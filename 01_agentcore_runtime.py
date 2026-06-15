@@ -1,28 +1,23 @@
 import csv
 import os
+import time
 from typing import List
-from typing_extensions import TypedDict
 
 from langchain_core.documents import Document
 from langchain_core.tools import tool
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_aws import BedrockEmbeddings
 from langchain_groq import ChatGroq
 from langchain_community.vectorstores import FAISS
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent
-
-#import agentcore runtime
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
-#agentcore app instance 
 app = BedrockAgentCoreApp()
-
 _ = load_dotenv()
 
-#Load the csv file
+
 def load_faq_csv(path: str) -> List[Document]:
     docs = []
     with open(path, "r", encoding="utf-8") as f:
@@ -34,106 +29,69 @@ def load_faq_csv(path: str) -> List[Document]:
     return docs
 
 
-docs = load_faq_csv("./lauki_qna.csv")
-emb = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2",
+emb = BedrockEmbeddings(
+    model_id="amazon.titan-embed-text-v2:0",
+    region_name=os.getenv("AWS_REGION", "us-east-1"),
 )
 
-#split the csv file into chunks
-splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
-chunks = splitter.split_documents(docs)
+FAISS_INDEX_PATH = "/tmp/faiss_index"
 
-#FAISS- vector database (stores embeddings)
-store = FAISS.from_documents(chunks, emb)
+# Load or build FAISS index
+if os.path.exists(FAISS_INDEX_PATH):
+    store = FAISS.load_local(FAISS_INDEX_PATH, emb, allow_dangerous_deserialization=True)
+else:
+    docs = load_faq_csv("./lauki_qna.csv")
+    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
+    chunks = splitter.split_documents(docs)
+    store = FAISS.from_documents(chunks, emb)
+    store.save_local(FAISS_INDEX_PATH)
 
-#define the tools (tool calling)
-@tool
+
+@tool(description="Search the FAQ knowledge base for relevant information. Use this when the user asks questions about products, services, or policies. Input: search query string.")
 def search_faq(query: str) -> str:
-    """Search the FAQ knowledge base for relevant information.
-    Use this tool when the user asks questions about products, services, or policies.
-    
-    Args:
-        query: The search query to find relevant FAQ entries
-        
-    Returns:
-        Relevant FAQ entries that might answer the question
-    """
-    results = store.similarity_search(query, k=3) #perform similarity search on faiss db (embeddings are stored)
-    
+    results = store.similarity_search(query, k=3)
     if not results:
         return "No relevant FAQ entries found."
-     #format the result
     context = "\n\n---\n\n".join([
-        f"FAQ Entry {i+1}:\n{doc.page_content}" 
+        f"FAQ Entry {i+1}:\n{doc.page_content}"
         for i, doc in enumerate(results)
     ])
-    
     return f"Found {len(results)} relevant FAQ entries:\n\n{context}"
 
 
-@tool
+@tool(description="Search the FAQ knowledge base with more results for complex queries. Use when initial search doesn't provide enough information. Input: search query string.")
 def search_detailed_faq(query: str, num_results: int = 5) -> str:
-    """Search the FAQ knowledge base with more results for complex queries.
-    Use this when the initial search doesn't provide enough information.
-    
-    Args:
-        query: The search query
-        num_results: Number of results to retrieve (default: 5)
-        
-    Returns:
-        More comprehensive FAQ entries
-    """
     results = store.similarity_search(query, k=num_results)
-    
     if not results:
         return "No relevant FAQ entries found."
-    
     context = "\n\n---\n\n".join([
-        f"FAQ Entry {i+1}:\n{doc.page_content}" 
+        f"FAQ Entry {i+1}:\n{doc.page_content}"
         for i, doc in enumerate(results)
     ])
-    
     return f"Found {len(results)} detailed FAQ entries:\n\n{context}"
 
 
-@tool
+@tool(description="Reformulate the query to focus on a specific aspect like pricing, activation, or troubleshooting. Input: original_query and focus_aspect strings.")
 def reformulate_query(original_query: str, focus_aspect: str) -> str:
-    """Reformulate the query to focus on a specific aspect.
-    Use this when you need to search for a different angle of the question.
-    
-    Args:
-        original_query: The original user question
-        focus_aspect: The specific aspect to focus on (e.g., "pricing", "activation", "troubleshooting")
-        
-    Returns:
-        A reformulated query focused on the specified aspect
-    """
     reformulated = f"{focus_aspect} related to {original_query}"
     results = store.similarity_search(reformulated, k=3)
-    
     if not results:
         return f"No results found for aspect: {focus_aspect}"
-    
     context = "\n\n---\n\n".join([
-        f"Entry {i+1}:\n{doc.page_content}" 
+        f"Entry {i+1}:\n{doc.page_content}"
         for i, doc in enumerate(results)
     ])
-    
     return f"Results for '{focus_aspect}' aspect:\n\n{context}"
-
 
 
 tools = [search_faq, search_detailed_faq, reformulate_query]
 
-#initialize the chat model (llm)
 model = ChatGroq(
     model="openai/gpt-oss-20b",
     temperature=0,
     api_key=os.getenv("GROQ_API_KEY")
 )
 
-
-#define the system prompt
 system_prompt = """You are a helpful FAQ assistant with access to a knowledge base.
 
 Your goal is to answer user questions accurately using the available tools.
@@ -153,21 +111,18 @@ agent = create_agent(
     tools=tools,
     system_prompt=system_prompt
 )
-#agentcore entry point
+
+
 @app.entrypoint
-def agent_invocation(payload,context):
-    print("Received Payload" , payload)
-    print("Recieved context" , context)
+def agent_invocation(payload, context):
+    print("Received Payload", payload)
+    print("Received context", context)
 
-    query = payload.get("prompt" , "No prompt found in input")
-
-    #invoke
-    result = agent.invoke({"messages":[("human" , query)]})
-
-    print("Result" , result)
-
+    query = payload.get("prompt", "No prompt found in input")
+    result = agent.invoke({"messages": [("human", query)]})
+    print("Result", result)
     return {"response": result['messages'][-1].content}
+
 
 if __name__ == "__main__":
     app.run()
-
