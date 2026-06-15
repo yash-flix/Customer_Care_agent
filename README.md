@@ -5,7 +5,14 @@ An AI-powered Customer Support Agent built with AWS Bedrock AgentCore, LangChain
 The project simulates a telecom customer support system for a fictional company called **Lauki Phones**, enabling users to ask questions about plans, billing, roaming, SIM activation, security, and account management.
 
 ---
-<img width="1365" height="628" alt="WhatsApp Image 2026-06-15 at 1 02 09 PM" src="https://github.com/user-attachments/assets/e73411b1-b29f-4223-9694-39258f7d9806" />
+<img width="1365" height="633" alt="WhatsApp Image 2026-06-15 at 11 45 18 AM" src="https://github.com/user-attachments/assets/89c46088-0386-4364-b2a8-620d06f026b6" />
+
+<img width="1365" height="640" alt="WhatsApp Image 2026-06-15 at 1 36 42 PM" src="https://github.com/user-attachments/assets/a61dc8c6-ee7b-4275-a029-6a1d61167553" />
+
+<img width="1365" height="636" alt="WhatsApp Image 2026-06-15 at 1 39 37 PM" src="https://github.com/user-attachments/assets/95d73f39-ee74-4f08-9d8d-ddec69c1bdd6" />
+
+
+
 
 
 ## Features
