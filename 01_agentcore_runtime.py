@@ -14,6 +14,12 @@ from langchain_community.vectorstores import FAISS
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 
+#import agentcore runtime
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
+
+#agentcore app instance 
+app = BedrockAgentCoreApp()
+
 _ = load_dotenv()
 
 #Load the csv file
@@ -147,7 +153,21 @@ agent = create_agent(
     tools=tools,
     system_prompt=system_prompt
 )
+#agentcore entry point
+@app.entrypoint
+def agent_invocation(payload,context):
+    print("Received Payload" , payload)
+    print("Recieved context" , context)
+
+    query = payload.get("prompt" , "No prompt found in input")
+
+    #invoke
+    result = agent.invoke({"messages":[("human" , query)]})
+
+    print("Result" , result)
+
+    return {"response": result['messages'][-1].content}
 
 if __name__ == "__main__":
-    result = agent.invoke({"messages": [("human", "Explain roaming activation.")]})
-    print(result['messages'][-1].content)
+    app.run()
+
