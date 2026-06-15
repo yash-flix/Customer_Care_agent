@@ -129,18 +129,18 @@ During development, I encountered runtime startup failures after successful depl
 ---
 
 ## Screenshots
+### Architecture Diagram
+<img width="476" height="567" alt="WhatsApp Image 2026-06-15 at 1 26 45 PM" src="https://github.com/user-attachments/assets/8514ffdb-2a34-4c62-96ca-eb232fd30998" />
+
 
 ### AWS Bedrock AgentCore Runtime
 
 Deployed and running on AWS AgentCore.
+<img width="1365" height="637" alt="WhatsApp Image 2026-06-15 at 1 22 01 PM" src="https://github.com/user-attachments/assets/75093a66-c40a-433e-a653-45cffc461eee" />
+
 
 ### CloudWatch Observability
-
-Monitoring runtime activity, latency, traces, and telemetry.
-
-### Streamlit Frontend
-
-Production-style customer support interface.
+<img width="1365" height="633" alt="WhatsApp Image 2026-06-15 at 1 24 20 PM" src="https://github.com/user-attachments/assets/09db0091-33aa-4eeb-a905-b783a101cf59" />
 
 ---
 
